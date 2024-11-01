@@ -1,0 +1,33 @@
+<!-- res/layout/chat_item.xml -->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="8dp">
+
+    <ImageView
+        android:id="@+id/profileImage"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_alignParentStart="true"
+        android:layout_marginEnd="8dp"
+        android:src="@drawable/profile_placeholder" />
+
+    <TextView
+        android:id="@+id/chatName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_toEndOf="@id/profileImage"
+        android:text="Chat Name"
+        android:textSize="16sp"
+        android:textColor="@android:color/black" />
+
+    <TextView
+        android:id="@+id/lastMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/chatName"
+        android:layout_toEndOf="@id/profileImage"
+        android:text="Last message preview..."
+        android:textSize="14sp"
+        android:textColor="@android:color/darker_gray" />
+</RelativeLayout>

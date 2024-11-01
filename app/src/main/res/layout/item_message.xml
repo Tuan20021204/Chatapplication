@@ -1,0 +1,30 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="8dp">
+
+    <!-- Tin nhắn nhận được -->
+    <TextView
+        android:id="@+id/text_message_received"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/received_message_background"
+        android:padding="8dp"
+        android:layout_marginEnd="40dp"
+        android:text="Tin nhắn nhận được"
+        android:textColor="@android:color/black"
+        android:visibility="gone" />
+
+    <!-- Tin nhắn gửi đi -->
+    <TextView
+        android:id="@+id/text_message_sent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/sent_message_background"
+        android:padding="8dp"
+        android:layout_marginStart="40dp"
+        android:text="Tin nhắn gửi đi"
+        android:textColor="@android:color/white"
+        android:visibility="gone" />
+</LinearLayout>
