@@ -1,5 +1,7 @@
 package com.example.chatapplication;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -9,6 +11,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -27,6 +30,9 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +41,8 @@ import java.util.concurrent.TimeUnit;
 import model.User;
 
 public class UserProfileActivity extends AppCompatActivity {
+    private static final int PICK_IMAGE_REQUEST = 1;
+
     private ImageView userImage;
     private EditText textUserName, textEmail, textPhone, textPassword, textConfirmPassword, textConfirmCode;
     private TextView pConfirmCode;
@@ -43,6 +51,7 @@ public class UserProfileActivity extends AppCompatActivity {
     private FirebaseDatabase database;
     private String verificationId;
     private boolean isCodeSent = false;
+    private Uri imageUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,18 +68,22 @@ public class UserProfileActivity extends AppCompatActivity {
         // Load current user data
         loadUserData();
 
+        // Set up button click listener for updating profile image
+        findViewById(R.id.updateImageProfile).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openImagePicker();
+            }
+        });
+
         // Setup save button click listener
         editProfileButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (!isCodeSent) {
-                    // First click - validate inputs and send verification code
-                    if (validateInputs()) {
-                        sendVerificationCode();
-                    }
+                if (imageUri != null) {
+                    uploadImageToFirebase();
                 } else {
-                    // Second click - verify code and update profile
-                    verifyCodeAndUpdateProfile();
+                    updateUserProfile();
                 }
             }
         });
@@ -173,20 +186,70 @@ public class UserProfileActivity extends AppCompatActivity {
         PhoneAuthProvider.verifyPhoneNumber(options);
     }
 
-    private void verifyCodeAndUpdateProfile() {
-        if (verificationId == null) {
-            Toast.makeText(UserProfileActivity.this, "Verification ID is missing", Toast.LENGTH_SHORT).show();
-            return;
-        }
+    private void openImagePicker() {
+        Intent intent = new Intent();
+        intent.setType("image/*");
+        intent.setAction(Intent.ACTION_GET_CONTENT);
+        startActivityForResult(intent, PICK_IMAGE_REQUEST);
+    }
 
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            imageUri = data.getData();
+            userImage.setImageURI(imageUri); // Hiển thị ảnh vào ImageView
+        }
+    }
+
+    private void uploadImageToFirebase() {
+        FirebaseStorage storage = FirebaseStorage.getInstance();
+        StorageReference storageRef = storage.getReference().child("profile_images/" + auth.getCurrentUser().getUid() + ".jpg");
+
+        storageRef.putFile(imageUri)
+                .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                        storageRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                            @Override
+                            public void onSuccess(Uri uri) {
+                                updateUserProfile(uri.toString());
+                            }
+                        });
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Toast.makeText(UserProfileActivity.this, "Failed to upload image", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private void saveImageUrlToDatabase(String imageUrl) {
+        FirebaseUser currentUser = auth.getCurrentUser();
+        if (currentUser != null) {
+            DatabaseReference userRef = database.getReference("users").child(currentUser.getUid());
+            userRef.child("profileImageUrl").setValue(imageUrl)
+                    .addOnSuccessListener(new OnSuccessListener<Void>() {
+                        @Override
+                        public void onSuccess(Void aVoid) {
+                            Toast.makeText(UserProfileActivity.this, "Profile image updated successfully", Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                            Toast.makeText(UserProfileActivity.this, "Failed to save image URL", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+        }
+    }
+
+    private void verifyCodeAndUpdateProfile() {
         String code = textConfirmCode.getText().toString();
         PhoneAuthCredential credential = PhoneAuthProvider.getCredential(verificationId, code);
-
-        FirebaseUser currentUser = auth.getCurrentUser();
-        if (currentUser == null) {
-            Toast.makeText(UserProfileActivity.this, "User not authenticated", Toast.LENGTH_SHORT).show();
-            return;
-        }
 
         auth.signInWithCredential(credential)
                 .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
@@ -195,63 +258,45 @@ public class UserProfileActivity extends AppCompatActivity {
                         if (task.isSuccessful()) {
                             updateUserProfile();
                         } else {
-                            Toast.makeText(UserProfileActivity.this, "Invalid verification code", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(UserProfileActivity.this,
+                                    "Invalid verification code",
+                                    Toast.LENGTH_SHORT).show();
                         }
                     }
                 });
     }
 
-
-    private void updateUserProfile() {
+    // Thay đổi hàm updateUserProfile để nhận tham số imageUrl
+    private void updateUserProfile(String imageUrl) {
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser != null) {
             DatabaseReference userRef = database.getReference("users").child(currentUser.getUid());
 
             Map<String, Object> updates = new HashMap<>();
             updates.put("username", textUserName.getText().toString());
-            updates.put("email", textEmail.getText().toString());
             updates.put("phone", textPhone.getText().toString());
 
-            // Update password if new password is provided
-            String newPassword = textPassword.getText().toString();
-            if (!newPassword.isEmpty()) {
-                currentUser.updatePassword(newPassword)
-                        .addOnCompleteListener(new OnCompleteListener<Void>() {
-                            @Override
-                            public void onComplete(@NonNull Task<Void> task) {
-                                if (!task.isSuccessful()) {
-                                    Toast.makeText(UserProfileActivity.this,
-                                            "Failed to update password",
-                                            Toast.LENGTH_SHORT).show();
-                                }
-                            }
-                        });
+            if (imageUrl != null) {
+                updates.put("profileImageUrl", imageUrl); // Chỉ lưu URL nếu có ảnh mới
             }
 
             userRef.updateChildren(updates)
                     .addOnSuccessListener(new OnSuccessListener<Void>() {
                         @Override
                         public void onSuccess(Void aVoid) {
-                            Toast.makeText(UserProfileActivity.this,
-                                    "Profile updated successfully",
-                                    Toast.LENGTH_SHORT).show();
-                            // Reset verification state
-                            isCodeSent = false;
-                            pConfirmCode.setVisibility(View.GONE);
-                            textConfirmCode.setVisibility(View.GONE);
-                            textPassword.setText("");
-                            textConfirmPassword.setText("");
+                            Toast.makeText(UserProfileActivity.this, "Profile updated successfully", Toast.LENGTH_SHORT).show();
                         }
                     })
                     .addOnFailureListener(new OnFailureListener() {
                         @Override
                         public void onFailure(@NonNull Exception e) {
-                            Toast.makeText(UserProfileActivity.this,
-                                    "Failed to update profile",
-                                    Toast.LENGTH_SHORT).show();
+                            Toast.makeText(UserProfileActivity.this, "Failed to update profile", Toast.LENGTH_SHORT).show();
                         }
                     });
         }
     }
-}
+    private void updateUserProfile() {
+        updateUserProfile(null);
+    }
 
+}

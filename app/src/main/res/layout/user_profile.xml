@@ -132,9 +132,11 @@
         android:id="@+id/textView6"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="78dp"
+        android:layout_marginTop="81dp"
         android:text="Profile"
-        tools:layout_editor_absoluteX="278dp"
-        tools:layout_editor_absoluteY="81dp" />
+        app:layout_constraintStart_toEndOf="@+id/userImage"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/pConfirmCode"
@@ -156,5 +158,15 @@
         android:text="Code"
         app:layout_constraintStart_toEndOf="@+id/pConfirmCode"
         tools:layout_editor_absoluteY="589dp" />
+
+    <Button
+        android:id="@+id/updateImageProfile"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="36dp"
+        android:layout_marginTop="32dp"
+        android:text="Choose photo"
+        app:layout_constraintStart_toEndOf="@+id/userImage"
+        app:layout_constraintTop_toBottomOf="@+id/textView6" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
