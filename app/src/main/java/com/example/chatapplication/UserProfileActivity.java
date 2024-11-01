@@ -174,8 +174,19 @@ public class UserProfileActivity extends AppCompatActivity {
     }
 
     private void verifyCodeAndUpdateProfile() {
+        if (verificationId == null) {
+            Toast.makeText(UserProfileActivity.this, "Verification ID is missing", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         String code = textConfirmCode.getText().toString();
         PhoneAuthCredential credential = PhoneAuthProvider.getCredential(verificationId, code);
+
+        FirebaseUser currentUser = auth.getCurrentUser();
+        if (currentUser == null) {
+            Toast.makeText(UserProfileActivity.this, "User not authenticated", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         auth.signInWithCredential(credential)
                 .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
@@ -184,13 +195,12 @@ public class UserProfileActivity extends AppCompatActivity {
                         if (task.isSuccessful()) {
                             updateUserProfile();
                         } else {
-                            Toast.makeText(UserProfileActivity.this,
-                                    "Invalid verification code",
-                                    Toast.LENGTH_SHORT).show();
+                            Toast.makeText(UserProfileActivity.this, "Invalid verification code", Toast.LENGTH_SHORT).show();
                         }
                     }
                 });
     }
+
 
     private void updateUserProfile() {
         FirebaseUser currentUser = auth.getCurrentUser();
